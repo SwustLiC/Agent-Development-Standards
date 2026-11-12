@@ -46,7 +46,7 @@
 ## 函数
 
 - 单一职责；函数体建议不超过 30 行，明显过长时拆分。
-- 参数不超过 5 个；更多时收敛为 `dataclass` 或 pydantic 模型。
+- 参数不超过 8 个；更多时收敛为 `dataclass` 或 pydantic 模型。
 - 禁止可变默认参数：需要容器参数时写 `def f(items: list[str] | None = None)`。
 - 优先纯函数；副作用（IO、全局状态、时间）集中在函数边缘，便于测试。
 - 用提前返回（guard clause）减少嵌套层级。
