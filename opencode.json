@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // 规范仓库自身也遵循规范（dogfooding）：
+  // 本仓库的 Python 代码（examples/mini、scripts/）编辑后自动走 ruff 格式化。
+  // 核心约定由根目录 AGENTS.md 指引到 standards/python/，
+  // 不在这里重复注入，避免与 examples/mini/opencode.json 的 instructions 叠加。
+  "formatter": true
+}

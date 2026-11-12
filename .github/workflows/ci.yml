@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  markdown:
+    name: Markdown 风格
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 检查 Markdown
+        run: npx -y markdownlint-cli2 "**/*.md"
+
+  canary:
+    name: canary 项目 (ruff + mypy + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/mini
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: 安装依赖
+        run: uv sync
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format
+        run: uv run ruff format --check .
+      - name: mypy
+        run: uv run mypy
+      - name: pytest
+        run: uv run pytest --cov --cov-report=term-missing
+
+  vendor-script:
+    name: vendor.py 冒烟测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 冒烟测试
+        run: |
+          python scripts/vendor.py target
+          test -f target/standards/python/core.md
+          test -f target/opencode.json
+          test -f target/AGENTS.md
+          python - <<'PY'
+          import json
+          cfg = json.loads(open("target/opencode.json", encoding="utf-8").read())
+          assert "standards/python/core.md" in cfg["instructions"]
+          assert cfg["formatter"] is True
+          print("opencode.json 合并结果正确")
+          PY

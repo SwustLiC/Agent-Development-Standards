@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // 中央引用模式：核心约定常驻注入，详细规范按需读取。
+  // 若规范仓库迁移（换 org / 换 GitLab 自托管），同步更新下面两处地址：
+  //   - instructions 的 raw URL（GitLab 用 <host>/<group>/<repo>/-/raw/main/...）
+  //   - references.repository（支持 owner/repo、git URL、host/path 形式）
+  "instructions": [
+    "https://raw.githubusercontent.com/SwustLiC/Agent-Development-Standards/main/standards/python/core.md"
+  ],
+  "references": {
+    "python-standards": {
+      "repository": "SwustLiC/Agent-Development-Standards",
+      "branch": "main",
+      "description": "Python 规范：代码风格 / 文档风格 / 测试 (pytest) / 默认库选型 / 提交规范。编写或评审 Python 前先读对应文件。"
+    }
+  },
+  "formatter": true
+}
