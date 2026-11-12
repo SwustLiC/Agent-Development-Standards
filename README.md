@@ -3,14 +3,15 @@
 面向 OpenCode（V2）的 Python 项目 agent 通用规范库：
 代码怎么写、文档怎么写、测试怎么跑、依赖怎么选、提交怎么规范。
 
-所有 Python 项目**引用**（而非复制）本仓库的规范，改一处、全部项目生效。
+所有 Python 项目默认**引用**本仓库的规范，改一处、全部项目生效；
+需要自包含或离线时用 vendor 复制。
 
 ## 规范如何生效
 
 | 内容 | 机制 | 生效方式 |
 | --- | --- | --- |
-| 核心约定（精简版） | `opencode.json` 的 `instructions` → `standards/python/core.md` | 每次对话常驻注入 |
-| 详细规范 | `opencode.json` 的 `references` → 本仓库（git） | agent 按需读取 |
+| 核心约定（精简版） | `opencode.json` 的 `instructions` → `core.md`（vendor 位于 `.opencode/standards/python/`） | 每次对话常驻注入 |
+| 详细规范 | `opencode.json` 的 `references` → `python-standards` | agent 按需读取 |
 | 代码格式 | `formatter` + ruff | 每次编辑后自动执行 |
 | 项目特有说明 | 项目内 `AGENTS.md` | 每次对话常驻注入 |
 
@@ -31,26 +32,42 @@ Agent-Development-Standards/
 │   ├── opencode.json          # 中央引用模式的 opencode 配置
 │   └── tests/conftest.py
 ├── examples/mini/             # canary 样例项目（应用全部规范）
-├── scripts/vendor.py          # vendor 模式同步脚本（纯标准库）
-└── .github/workflows/ci.yml   # CI：markdown + canary + vendor 冒烟
+├── scripts/
+│   ├── reference.py           # 方式一：自动写入中央引用配置（纯标准库）
+│   └── vendor.py              # 方式二：vendor 同步脚本（纯标准库）
+└── .github/workflows/ci.yml   # CI：markdown + canary + 接入脚本冒烟
 ```
 
 ## 接入方式
 
 ### 方式一：中央引用（推荐，团队使用）
 
-1. 复制 `templates/opencode.json` 到目标项目根目录；
-   当前指向 `SwustLiC/Agent-Development-Standards`，仓库迁移时同步改地址。
-2. 复制 `templates/AGENTS.md` 为目标项目的 `AGENTS.md`，
-   补充项目特有信息（构建命令、目录结构、禁止事项等）。
-3. 目标项目的 `pyproject.toml` 以 `templates/pyproject.toml` 为基线
-   （uv + ruff + mypy + pytest）。
-4. 在目标项目启动 OpenCode 即生效：核心约定常驻注入，
-   详细规范通过 `python-standards` 引用按需读取。
+```bash
+python scripts/reference.py <目标项目路径>
+```
 
-> 自托管（GitLab 等）时：`instructions` 的 raw URL 改为
-> `<host>/<group>/<repo>/-/raw/main/standards/python/core.md`，
-> `references.repository` 改为可识别的仓库地址（支持 owner/repo、git URL、host/path 形式）。
+脚本会：
+
+1. 生成或合并 `opencode.json`：写入远程 `instructions`、`python-standards` 引用与 `formatter`；
+   已有合法 JSON 配置会保留其他设置，只更新本规范相关的字段。
+2. 缺失时从 `templates/AGENTS.md` 生成 `AGENTS.md`。
+3. 缺失时从 `templates/pyproject.toml` 生成 `pyproject.toml`
+   （uv + ruff + mypy + pytest，记得替换占位项目名）。
+
+仓库迁移或自托管时覆盖地址：
+
+```bash
+# GitHub：换 owner/repo 或分支
+python scripts/reference.py <目标项目路径> --repo my-org/my-standards --branch main
+
+# GitLab 等自托管：同时指定仓库地址与 core.md 的 raw 地址
+python scripts/reference.py <目标项目路径> \
+  --repo gitlab.example.com/group/repo \
+  --raw-url https://gitlab.example.com/group/repo/-/raw/main/standards/python/core.md
+```
+
+在目标项目启动 OpenCode 即生效：核心约定常驻注入，
+详细规范通过 `python-standards` 引用按需读取。
 
 ### 方式二：vendor（自包含 / 离线）
 
@@ -58,11 +75,31 @@ Agent-Development-Standards/
 python scripts/vendor.py <目标项目路径>
 ```
 
-- 把 `standards/python/` 拷贝进目标仓库（更新时重跑即可覆盖）；
-- 生成/合并目标项目的 `opencode.json`（相对路径 `instructions` + `formatter`）；
-- 缺失时从 `templates/AGENTS.md` 生成 `AGENTS.md`。
+- 把 `standards/python/` 拷贝到 `<目标>/.opencode/standards/python/`
+  （更新时重跑即可覆盖）；
+- 生成/合并根目录 `opencode.json`：相对 `instructions`、本地 `python-standards`
+  引用与 `formatter`；
+- 缺失时从 `templates/AGENTS.md` 生成根目录 `AGENTS.md`；
+- `--dest <目录>` 改注入目录（默认 `.opencode`）；
+- `--gitignore` 把 `<dest>/standards/python/` 追加到 `.gitignore`，
+  控制规范是否随仓库上传。
+
+`opencode.json` 与 `AGENTS.md` 保持在项目根目录，便于团队共享；
+可变的规范副本在 `.opencode/standards/python/`，需要时加入 `.gitignore`：
+
+```gitignore
+.opencode/standards/python/
+```
+
+忽略规范副本后，新克隆或 CI 需要先运行一次
+`python scripts/vendor.py <目标项目路径>`，否则 `instructions` 指向的文件不存在
+（OpenCode 会跳过缺失文件）。
+
+> 从旧版本升级：重跑脚本会把 `instructions` 从 `standards/python/core.md`
+> 替换为 `.opencode/standards/python/core.md`；旧根目录下的 `standards/python/` 可删除。
 
 适用：离线环境、不想把规范放在外部仓库、或需要规范随项目一起归档时。
+需要归档时不要加 `--gitignore`。
 
 ## 规范文档一览
 
@@ -78,10 +115,10 @@ python scripts/vendor.py <目标项目路径>
 ## 自检
 
 - **canary 样例**：`examples/mini` 是一个完整应用了全部规范的小项目，
-  同时用相对 `instructions` 路径验证 vendor 模式的端到端可用性。
+  并用相对 `instructions` 路径验证 OpenCode 的向上查找解析。
 - **CI**（`.github/workflows/ci.yml`）：
-  markdownlint（文档）、ruff check、ruff format、mypy、pytest（canary）
-  与 vendor.py 冒烟测试。
+  markdownlint（文档）、ruff check、ruff format、mypy、pytest（canary），
+  以及 `reference.py` / `vendor.py` 冒烟测试（含重复执行与旧配置迁移）。
 - **本地运行**：
 
 ```bash

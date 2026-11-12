@@ -38,25 +38,55 @@ jobs:
         run: uv run mypy
       - name: pytest
         run: uv run pytest --cov --cov-report=term-missing
+      - name: scripts (ruff + mypy)
+        working-directory: .
+        run: |
+          uv run --project examples/mini ruff check --config examples/mini/pyproject.toml scripts
+          uv run --project examples/mini ruff format --check --config examples/mini/pyproject.toml scripts
+          uv run --project examples/mini mypy --config-file examples/mini/pyproject.toml scripts
 
-  vendor-script:
-    name: vendor.py 冒烟测试
+  scripts:
+    name: 接入脚本冒烟测试
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: 冒烟测试
+      - name: reference.py
         run: |
-          python scripts/vendor.py target
-          test -f target/standards/python/core.md
-          test -f target/opencode.json
-          test -f target/AGENTS.md
+          python scripts/reference.py target-ref
+          test -f target-ref/opencode.json
+          test -f target-ref/AGENTS.md
+          test -f target-ref/pyproject.toml
+          grep -q "standards/python/core.md" target-ref/opencode.json
+      - name: vendor.py
+        run: |
+          python scripts/vendor.py target-vendor
+          python scripts/vendor.py target-vendor
+          test -f target-vendor/.opencode/standards/python/core.md
+          test -f target-vendor/opencode.json
+          test -f target-vendor/AGENTS.md
           python - <<'PY'
           import json
-          cfg = json.loads(open("target/opencode.json", encoding="utf-8").read())
-          assert "standards/python/core.md" in cfg["instructions"]
+          cfg = json.loads(open("target-vendor/opencode.json", encoding="utf-8").read())
+          assert ".opencode/standards/python/core.md" in cfg["instructions"]
+          assert cfg["references"]["python-standards"]["path"] == "./.opencode/standards/python"
           assert cfg["formatter"] is True
-          print("opencode.json 合并结果正确")
+          print("vendor opencode.json 合并结果正确")
+          PY
+      - name: vendor.py 配置合并与 --gitignore
+        run: |
+          mkdir -p target-merge
+          printf '%s\n' '{"instructions":["standards/python/core.md","custom.md"],"references":{"python-standards":{"repository":"old/repo","branch":"dev"}}}' > target-merge/opencode.json
+          python scripts/vendor.py target-merge --gitignore
+          grep -qx ".opencode/standards/python/" target-merge/.gitignore
+          python - <<'PY'
+          import json
+          cfg = json.loads(open("target-merge/opencode.json", encoding="utf-8").read())
+          assert cfg["instructions"] == ["custom.md", ".opencode/standards/python/core.md"]
+          ref = cfg["references"]["python-standards"]
+          assert ref["path"] == "./.opencode/standards/python"
+          assert "repository" not in ref and "branch" not in ref
+          print("旧配置迁移结果正确")
           PY

@@ -8,6 +8,7 @@
 - 本仓库的 Python 代码（`examples/mini`、`scripts/`）遵循 `standards/python/`：
   - canary 的依赖与命令在 `examples/mini` 内执行：`uv sync`、`uv run ruff check .`、
     `uv run ruff format .`、`uv run mypy`、`uv run pytest`。
-  - `scripts/vendor.py` 仅用标准库，直接 `python scripts/vendor.py <目标项目路径>` 即可运行。
+  - `scripts/reference.py`、`scripts/vendor.py` 仅用标准库，
+    直接 `python scripts/<脚本> <目标项目路径>` 即可运行。
 - Markdown 文档风格遵循 `standards/python/doc-style.md`。
 - 提交遵循 `standards/python/commit.md` 的 Conventional Commits。
